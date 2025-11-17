@@ -68,6 +68,45 @@ public class Main {
         Transaction valids[]=txHandler.handleTxs(list);
         System.out.println("txHandler.handleTxs(new Transaction[]{tx2}) returns: set with " +
             valids.length + " valid transaction(s)");
+        
+        
+        //new set of transactions
+	    //tx3: inputs=10, outputs=9 -> fee=1
+	    Tx tx3 = new Tx();
+	    tx3.addInput(tx.getHash(), 0);
+	    tx3.addOutput(9, pk_alice.getPublic());
+	    tx3.signTx(pk_scrooge.getPrivate(), 0);
+	
+	    //tx4: inputs=10, outputs=8 -> fee=2
+	    Tx tx4 = new Tx();
+	    tx4.addInput(tx.getHash(), 0);
+	    tx4.addOutput(8, pk_alice.getPublic());
+	    tx4.signTx(pk_scrooge.getPrivate(), 0);
+	
+	    //tx5: inputs=10, outputs=10 -> fee=0
+	    Tx tx5 = new Tx();
+	    tx5.addInput(tx.getHash(), 0);
+	    tx5.addOutput(10, pk_alice.getPublic());
+	    tx5.signTx(pk_scrooge.getPrivate(), 0);
+	
+	    //new handler to test greedy aproach
+	    TxHandler greedyHandler = new TxHandler(utxoPool);
+	    Transaction[] greedyList = new Transaction[]{tx2, tx3, tx4, tx5};
+	    Transaction[] greedyChosen = greedyHandler.handleTxsGreedy(greedyList);
+	    System.out.println("\nGreedy approach chose " + greedyChosen.length + " transactions:");
+	    for(Transaction t : greedyChosen){
+	        System.out.println("Fee=" + greedyHandler.calcFee(t, utxoPool));
+	    }
+	    
+	    //new handler to test brute force aproach
+	    TxHandler bruteHandler = new TxHandler(utxoPool);
+	    Transaction[] bruteChosen = bruteHandler.handleTxsBruteForce(new Transaction[]{tx2, tx3, tx4, tx5});
+	    System.out.println("\nBrute Force chose " + bruteChosen.length + " transactions:");
+	    for(Transaction t : bruteChosen){
+	        System.out.println("Fee=" + bruteHandler.calcFee(t, utxoPool));
+	    }
+
+          
     }
 
     public static class Tx extends Transaction { 
