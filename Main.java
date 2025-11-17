@@ -123,7 +123,6 @@ public class Main {
             // Note that this method is incorrectly named,
             //it calls the hash method of the transaction class
             // hash = md.digest();
-            this.finalize();
         }
     }
 }
