@@ -2,6 +2,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class TxHandler {
+	
+	private UTXOPool utxoPool;
 
     /**
      * Creates a public ledger whose current UTXOPool (collection of unspent transaction outputs) is
@@ -106,5 +108,141 @@ public class TxHandler {
         }
         return res;        
     }
+    
+    
+    
+    
+    /** 
+     * Greedy Aproach
+     *  Start with a copy of the current UTXOPool (the unspent outputs).
+     *  UNTIL you can find at least one valid transaction:
+     *  Among all currently valid transactions, choose the one with the highest fee.
+     *  Add it to the result set.
+     *  Update the UTXOPool:
+     *   Remove its inputs.
+     *   Add its outputs.
+     *   Repeat (since including a tx may make other ones valid).
+     *   No valid transaction found – RETURN result set
+     *   Advantages:
+     *   Simple and works fine for small input sets.
+     *   Yields near-optimal results in most cases.
+     *   Disadvantage:
+     *   Not guaranteed to find the absolute maximum if there are complex dependencies (where two
+     *   lower-fee txs combined allow a higher-fee one).
+    */
+    public Transaction[] handleTxsGreedy(Transaction[] possibleTxs) {
+        Set<Transaction> result = new HashSet<>();
+        UTXOPool poolCopy = new UTXOPool(this.utxoPool);
+
+        boolean found = true;
+        while(found){
+            found = false;
+            Transaction bestTx = null;
+            double bestFee = Double.NEGATIVE_INFINITY;
+
+            // search for max fee transaction
+            for(Transaction tx : possibleTxs){
+                if(result.contains(tx)) 
+                	continue;
+                TxHandler tempHandler = new TxHandler(poolCopy);
+                if(tempHandler.isValidTx(tx)){
+                    double fee = calcFee(tx, poolCopy);
+                    if(fee > bestFee){
+                        bestFee = fee;
+                        bestTx = tx;
+                    }
+                }
+            }
+
+            if(bestTx != null){
+                result.add(bestTx);
+                found = true;
+
+                for(Transaction.Input in : bestTx.getInputs()){
+                    UTXO utxo = new UTXO(in.prevTxHash, in.outputIndex);
+                    poolCopy.removeUTXO(utxo);
+                }
+                for(int i = 0; i < bestTx.numOutputs(); i++){
+                    UTXO utxo = new UTXO(bestTx.getHash(), i);
+                    poolCopy.addUTXO(utxo, bestTx.getOutput(i));
+                }
+            }
+        }
+
+        return result.toArray(new Transaction[0]);
+    }
+    
+    
+    /**
+     * Brute Force Search
+     * optimal but expensive. 
+     * Try all subsets of possibleTxs, validate each subset, and compute total fees — keep the best.
+     * Complexity: 𝑂(2𝑛)— exponential, only feasible for small n 
+     */
+    public Transaction[] handleTxsBruteForce(Transaction[] possibleTxs) {
+        Transaction[] bestSet = new Transaction[0];
+        double bestFee = Double.NEGATIVE_INFINITY;
+
+        int n = possibleTxs.length;
+        for(int mask = 0; mask < (1 << n); mask++) {
+            UTXOPool poolCopy = new UTXOPool(this.utxoPool);
+            Set<Transaction> currentSet = new HashSet<>();
+            double totalFee = 0;
+            boolean validSet = true;
+
+            for(int i = 0; i < n; i++){
+                if((mask & (1 << i)) != 0){
+                    Transaction tx = possibleTxs[i];
+                    TxHandler tempHandler = new TxHandler(poolCopy);
+                    if(tempHandler.isValidTx(tx)){
+                        double fee = calcFee(tx, poolCopy); 
+                        for(Transaction.Input in : tx.getInputs()){
+                            UTXO utxo = new UTXO(in.prevTxHash, in.outputIndex);
+                            poolCopy.removeUTXO(utxo);
+                        }
+                        for(int j = 0; j < tx.numOutputs(); j++){
+                            UTXO utxo = new UTXO(tx.getHash(), j);
+                            poolCopy.addUTXO(utxo, tx.getOutput(j));
+                        }
+                        totalFee += fee;
+                        currentSet.add(tx);
+                    }else {
+                        validSet = false;
+                        break;
+                    }
+                }
+            }
+
+            if(validSet && totalFee > bestFee){
+                bestFee = totalFee;
+                bestSet = currentSet.toArray(new Transaction[0]);
+            }
+        }  
+        return bestSet;
+    }
+
+    
+    
+
+    // calcule transaction fee
+    double calcFee(Transaction tx, UTXOPool pool){
+        double inVal = 0, outVal = 0;
+        for(Transaction.Input in : tx.getInputs()){
+            UTXO utxo = new UTXO(in.prevTxHash, in.outputIndex);
+            Transaction.Output prevOut = pool.getTxOutput(utxo);
+            if (prevOut != null) {
+                inVal += prevOut.value;
+            }
+        }
+        for(Transaction.Output out : tx.getOutputs()){
+            outVal += out.value;
+        }
+        return inVal - outVal;
+    }
+
+    
+    
+    
+    
 
 }
