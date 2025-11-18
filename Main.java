@@ -3,14 +3,14 @@ import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 
 public class Main {
-    
+
     public static void main(String[] args) throws Exception {
         /*
          * Generate key pairs, 
          */
         KeyPair pk_scrooge = KeyPairGenerator.getInstance("RSA").generateKeyPair();
         KeyPair pk_alice   = KeyPairGenerator.getInstance("RSA").generateKeyPair();
-      
+
         /*
          * Set up an initial createcoin root transaction
          *
@@ -20,7 +20,7 @@ public class Main {
          */
         Tx tx = new Tx();
         tx.addOutput(10, pk_scrooge.getPublic());
-        
+
 
         // This value has no meaning, but tx.getRawDataToSign(0) will access it in prevTxHash;
         byte[] initialHash = BigInteger.valueOf(0).toByteArray();
@@ -34,8 +34,8 @@ public class Main {
             System.out.println("True by design.  A create coin");
         else
             System.out.println("Scrooge has lost control of his keys");
-        
-        
+
+
         /*
          * Set up the UTXOPool
          */
@@ -56,12 +56,12 @@ public class Main {
         tx2.addOutput(5, pk_alice.getPublic());
         tx2.addOutput(3, pk_alice.getPublic());
         tx2.addOutput(2, pk_alice.getPublic());
-        
+
         // There is only one (at position 0) Transaction.Input in tx2
         // and it contains the coin from Scrooge, therefore I have to sign with the private key from Scrooge
         tx2.signTx(pk_scrooge.getPrivate(), 0);
-        
-        
+
+
         TxHandler txHandler = new TxHandler(utxoPool);
         System.out.println("txHandler.isValidTx(tx2) returns: " + txHandler.isValidTx(tx2));
         Transaction list[]=new Transaction[]{tx2};
@@ -88,6 +88,31 @@ public class Main {
 	    tx5.addInput(tx.getHash(), 0);
 	    tx5.addOutput(10, pk_alice.getPublic());
 	    tx5.signTx(pk_scrooge.getPrivate(), 0);
+	    
+	    
+	    
+
+	    //txB: inputs=10, outputs=7 -> fee=3
+	    Tx txB = new Tx();
+	    txB.addInput(tx.getHash(), 0);
+	    txB.addOutput(7, pk_alice.getPublic());
+	    txB.signTx(pk_scrooge.getPrivate(), 0);
+
+	    //txA: depends of txB, inputs=7, outputs=2 -> fee=5
+	    Tx txA = new Tx();
+	    txA.addInput(txB.getHash(), 0);
+	    txA.addOutput(2, pk_alice.getPublic());
+	    txA.signTx(pk_alice.getPrivate(), 0);
+
+	    //txC:independent, inputs=10, outputs=4 -> fee=6
+	    Tx txC = new Tx();
+	    txC.addInput(tx.getHash(), 0);
+	    txC.addOutput(4, pk_alice.getPublic());
+	    txC.signTx(pk_scrooge.getPrivate(), 0);
+
+	    
+	    
+	    
 	
 	    //new handler to test greedy aproach
 	    TxHandler greedyHandler = new TxHandler(utxoPool);
@@ -105,6 +130,14 @@ public class Main {
 	    for(Transaction t : bruteChosen){
 	        System.out.println("Fee=" + bruteHandler.calcFee(t, utxoPool));
 	    }
+	    
+	    // new handler to test Topological + Greedy approach
+	    TxHandler topoGreedyHandler = new TxHandler(utxoPool);
+	    Transaction[] topoGreedyChosen = topoGreedyHandler.handleTxsTopoGreedy(new Transaction[]{txA, txB, txC});
+	    System.out.println("Topo+Greedy chose " + topoGreedyChosen.length + " transactions");
+
+
+
 
           
     }
@@ -123,6 +156,7 @@ public class Main {
             // Note that this method is incorrectly named,
             //it calls the hash method of the transaction class
             // hash = md.digest();
+            this.finalize();
         }
     }
 }
