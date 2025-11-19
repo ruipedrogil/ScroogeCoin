@@ -40,9 +40,6 @@ Troubleshooting notes
 - If you do not want the script to download the jars, place `junit-4.13.2.jar` and `hamcrest-core-1.3.jar` manually into `lib/`.
 - The script assumes classes are in the default (unnamed) package. If your classes use package declarations, you must compile with the corresponding directory structure.
 
-Additional suggestions
-- I can add a simple `Makefile` or create a `pom.xml`/`build.gradle` for CI integration if you want.
-
 Useful files
 - `run-tests.sh` — automation script (compile + run tests)
 - `test/IsValidTest.java` — JUnit test suite with 7 tests
