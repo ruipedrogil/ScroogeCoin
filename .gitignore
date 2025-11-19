@@ -1,0 +1,19 @@
+# build output
+bin/
+out/
+
+# Java class files
+*.class
+
+# OS files
+.DS_Store
+
+# downloaded jars (JUnit/Hamcrest) - keep lib/ but ignore jars
+lib/*.jar
+
+# IDE/editor directories
+.idea/
+.vscode/
+
+# logs
+*.log
