@@ -1,4 +1,11 @@
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 
 public class TxHandler {
@@ -220,9 +227,69 @@ public class TxHandler {
         }  
         return bestSet;
     }
+    
+    
+    
+    public Transaction[] handleTxsTopoGreedy(Transaction[] possibleTxs) {
+        //dependance graph
+        Map<Transaction, List<Transaction>> adj = new HashMap<>();
+        Map<Transaction, Integer> indegree = new HashMap<>();
+        double totalFee = 0;
+        for(Transaction tx : possibleTxs){
+            adj.put(tx, new ArrayList<>());
+            indegree.put(tx, 0);
+        }
+        for(Transaction tx : possibleTxs){
+            for(Transaction.Input in : tx.getInputs()){
+                for(Transaction other : possibleTxs){
+                    if(Arrays.equals(in.prevTxHash, other.getHash())){
+                        adj.get(other).add(tx);  //tx is dependant of other
+                        indegree.put(tx, indegree.get(tx) + 1);
+                    }
+                }
+            }
+        }
 
-    
-    
+        //Topological sort
+        Queue<Transaction> q = new LinkedList<>();
+        for(Transaction tx : possibleTxs){
+            if (indegree.get(tx) == 0) q.add(tx);
+        }
+        List<Transaction> topoOrder = new ArrayList<>();
+        while(!q.isEmpty()){
+            Transaction cur = q.poll();
+            topoOrder.add(cur);
+            for(Transaction nxt : adj.get(cur)){
+                indegree.put(nxt, indegree.get(nxt) - 1);
+                if(indegree.get(nxt) == 0) q.add(nxt);
+            }
+        }
+
+        //greedy approach
+        Set<Transaction> result = new HashSet<>();
+        UTXOPool poolCopy = new UTXOPool(this.utxoPool);
+        for (Transaction tx : topoOrder){
+            TxHandler tempHandler = new TxHandler(poolCopy);
+            if (tempHandler.isValidTx(tx)){
+                double fee = calcFee(tx, poolCopy);
+                totalFee += fee;
+                result.add(tx);
+
+                for(Transaction.Input in : tx.getInputs()){
+                    UTXO utxo = new UTXO(in.prevTxHash, in.outputIndex);
+                    poolCopy.removeUTXO(utxo);
+                }
+                for(int i = 0; i < tx.numOutputs(); i++){
+                    UTXO utxo = new UTXO(tx.getHash(), i);
+                    poolCopy.addUTXO(utxo, tx.getOutput(i));
+                }
+            }
+        }
+        System.out.println("\nTopo+Greedy total fees=" + totalFee);
+        return result.toArray(new Transaction[0]);
+    }
+
+
 
     // calcule transaction fee
     double calcFee(Transaction tx, UTXOPool pool){
@@ -239,10 +306,5 @@ public class TxHandler {
         }
         return inVal - outVal;
     }
-
-    
-    
-    
-    
 
 }
