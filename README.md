@@ -35,11 +35,6 @@ What the script does
 - Compiles all `.java` files from the project root and `test/` into `bin/`.
 - Runs the JUnit runner (`org.junit.runner.JUnitCore`) for the provided test class (defaults to `IsValidTest`).
 
-Troubleshooting notes
-- If compilation fails, read the `javac` error messages and fix the source files. I can help debugging compilation errors if you paste the output.
-- If you do not want the script to download the jars, place `junit-4.13.2.jar` and `hamcrest-core-1.3.jar` manually into `lib/`.
-- The script assumes classes are in the default (unnamed) package. If your classes use package declarations, you must compile with the corresponding directory structure.
-
 Useful files
 - `run-tests.sh` — automation script (compile + run tests)
 - `test/IsValidTest.java` — JUnit test suite with 7 tests
